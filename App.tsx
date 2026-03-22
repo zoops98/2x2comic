@@ -1,5 +1,6 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { Settings, RefreshCw, Upload, Sparkles, Download, RotateCcw, ChevronRight, Key, X, ExternalLink } from 'lucide-react';
 import { generateScript, generateImage, generateCharacterSheet, generateIdeas, generateInstagramPost, generateContinuationScript, setDynamicApiKey } from './services/geminiService';
 import type { FullScript, Character, Step, StoryFormat, ContinuationType, TailDirection } from './types';
 import ComicPanel from './components/ComicPanel';
@@ -490,13 +491,17 @@ const App: React.FC = () => {
       <input type="file" ref={characterImageInputRef} accept="image/*" className="hidden" onChange={onCharacterImageSelected} />
 
       <header className="text-center mb-16 mt-4 relative">
-        <div className="absolute right-0 top-0">
+        <div className="absolute right-0 top-0 z-20">
           <button 
-            onClick={() => setShowApiKeyModal(true)}
-            className="p-3 bg-white rounded-full shadow-md hover:shadow-lg transition-all text-slate-400 hover:text-indigo-600"
+            onClick={() => {
+              console.log('Settings button clicked');
+              setShowApiKeyModal(true);
+            }}
+            className="p-3 bg-white rounded-full shadow-md hover:shadow-lg transition-all text-slate-400 hover:text-indigo-600 border border-slate-100 flex items-center justify-center"
             title="API 키 설정"
+            aria-label="API 키 설정"
           >
-            <span className="text-xl">⚙️</span>
+            <Settings className="w-6 h-6" />
           </button>
         </div>
         <h1 className="text-5xl md:text-7xl font-title text-indigo-600 mb-4 tracking-tight drop-shadow-sm">
@@ -543,7 +548,7 @@ const App: React.FC = () => {
                   <div className="flex justify-between items-end px-1">
                     <label className="block text-sm font-black text-slate-500 uppercase tracking-wider">📑 학습 지문 또는 텍스트 입력</label>
                     <button onClick={handleGenerateIdeas} disabled={isBusy} className="text-sm font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-2 transition-all hover:scale-105 active:scale-95 disabled:opacity-50">
-                        {isGeneratingIdeas ? <Spinner /> : "✨ 구성 아이디어"}
+                        {isGeneratingIdeas ? <Spinner /> : <><Sparkles className="w-4 h-4" /> 구성 아이디어</>}
                     </button>
                   </div>
 
@@ -569,7 +574,7 @@ const App: React.FC = () => {
                   disabled={isBusy}
                   className="w-full py-6 bg-gradient-to-br from-indigo-600 to-blue-700 text-white font-black text-2xl rounded-[1.5rem] shadow-xl shadow-indigo-200 btn-modern disabled:grayscale disabled:opacity-50 flex items-center justify-center gap-4"
                 >
-                  {isGeneratingScript ? <Spinner /> : '🚀 분석 및 대본 생성하기'}
+                  {isGeneratingScript ? <Spinner /> : <><ChevronRight className="w-8 h-8" /> 분석 및 대본 생성하기</>}
                 </button>
             </div>
         )}
@@ -603,9 +608,11 @@ const App: React.FC = () => {
                 ))}
               </div>
               <div className="flex flex-col md:flex-row gap-6 pt-6">
-                  <button onClick={() => setCurrentStep('STEP_1_TOPIC')} className="flex-1 py-5 bg-slate-100 text-slate-500 font-bold rounded-2xl hover:bg-slate-200 transition-all text-lg btn-modern">지문 수정</button>
+                  <button onClick={() => setCurrentStep('STEP_1_TOPIC')} className="flex-1 py-5 bg-slate-100 text-slate-500 font-bold rounded-2xl hover:bg-slate-200 transition-all text-lg btn-modern flex items-center justify-center gap-2">
+                    <RotateCcw className="w-5 h-5" /> 지문 수정
+                  </button>
                   <button onClick={handleGenerateCharacterSheets} disabled={isBusy} className="flex-[2] py-5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-black rounded-2xl shadow-xl shadow-emerald-100 flex items-center justify-center gap-3 text-lg btn-modern">
-                      {isGeneratingSheets ? <Spinner /> : '🎨 캐릭터 일러스트 그리기'}
+                      {isGeneratingSheets ? <Spinner /> : <><Sparkles className="w-6 h-6" /> 캐릭터 일러스트 그리기</>}
                   </button>
               </div>
           </div>
@@ -627,15 +634,23 @@ const App: React.FC = () => {
                   </div>
                   <h4 className="font-black text-2xl text-slate-800 mb-6">{char.name}</h4>
                   <div className="flex gap-3">
-                    <button onClick={() => triggerCharacterImageUpload(i)} className="text-[10px] uppercase font-black tracking-widest px-4 py-2 bg-slate-100 text-slate-500 rounded-xl hover:bg-slate-200 transition-all">Upload</button>
-                    <button onClick={() => handleRegenerateCharacterSheet(i)} className="text-[10px] uppercase font-black tracking-widest px-4 py-2 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 shadow-md shadow-indigo-100 transition-all">Redraw</button>
+                    <button onClick={() => triggerCharacterImageUpload(i)} className="text-[10px] uppercase font-black tracking-widest px-4 py-2 bg-slate-100 text-slate-500 rounded-xl hover:bg-slate-200 transition-all flex items-center gap-1">
+                      <Upload className="w-3 h-3" /> Upload
+                    </button>
+                    <button onClick={() => handleRegenerateCharacterSheet(i)} className="text-[10px] uppercase font-black tracking-widest px-4 py-2 bg-indigo-500 text-white rounded-xl hover:bg-indigo-600 shadow-md shadow-indigo-100 transition-all flex items-center gap-1">
+                      <RefreshCw className={`w-3 h-3 ${regeneratingSheetIndex === i ? 'animate-spin' : ''}`} /> Redraw
+                    </button>
                   </div>
                 </div>
               ))}
             </div>
             <div className="flex gap-6 border-t border-slate-50 pt-12">
-                <button onClick={handleReset} className="flex-1 py-5 bg-slate-100 text-slate-500 font-bold rounded-2xl btn-modern">다시 시작</button>
-                <button onClick={() => setCurrentStep('STEP_4_COMIC')} className="flex-[2] py-5 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-black rounded-2xl shadow-xl shadow-indigo-200 btn-modern text-lg">완성된 만화 렌더링</button>
+                <button onClick={handleReset} className="flex-1 py-5 bg-slate-100 text-slate-500 font-bold rounded-2xl btn-modern flex items-center justify-center gap-2">
+                  <RotateCcw className="w-5 h-5" /> 다시 시작
+                </button>
+                <button onClick={() => setCurrentStep('STEP_4_COMIC')} className="flex-[2] py-5 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-black rounded-2xl shadow-xl shadow-indigo-200 btn-modern text-lg flex items-center justify-center gap-2">
+                  <Sparkles className="w-6 h-6" /> 완성된 만화 렌더링
+                </button>
             </div>
           </div>
         )}
@@ -643,8 +658,8 @@ const App: React.FC = () => {
         {currentStep === 'STEP_4_COMIC' && (
             <div className="space-y-12 animate-in fade-in duration-1000">
                 <div className="flex justify-center">
-                  <button onClick={handleGenerateAllImages} disabled={isBusy || allImagesGenerated} className="px-14 py-6 bg-gradient-to-r from-violet-600 to-indigo-700 text-white font-black text-2xl rounded-3xl shadow-2xl shadow-indigo-200 btn-modern disabled:scale-100 disabled:grayscale">
-                      {isGeneratingAllImages ? <><Spinner /><span className="ml-4">4컷 만화 제작 중...</span></> : '✨ 전체 4컷 이미지 생성'}
+                  <button onClick={handleGenerateAllImages} disabled={isBusy || allImagesGenerated} className="px-14 py-6 bg-gradient-to-r from-violet-600 to-indigo-700 text-white font-black text-2xl rounded-3xl shadow-2xl shadow-indigo-200 btn-modern disabled:scale-100 disabled:grayscale flex items-center gap-4">
+                      {isGeneratingAllImages ? <><Spinner /><span className="ml-4">4컷 만화 제작 중...</span></> : <><Sparkles className="w-8 h-8" /> 전체 4컷 이미지 생성</>}
                   </button>
                 </div>
 
@@ -667,9 +682,15 @@ const App: React.FC = () => {
                             <p className="text-slate-400 font-semibold">이제 저장하여 복습하거나 공유해보세요.</p>
                         </div>
                         <div className="flex justify-center gap-5 flex-wrap">
-                            <button onClick={() => handleDownload('grid')} className="px-8 py-4 bg-slate-900 text-white font-bold rounded-2xl btn-modern flex items-center gap-2">🖼️ 바둑판 저장</button>
-                            <button onClick={() => handleDownload('vertical')} className="px-8 py-4 bg-slate-900 text-white font-bold rounded-2xl btn-modern flex items-center gap-2">📱 세로형 저장</button>
-                            <button onClick={handleReset} className="px-8 py-4 bg-slate-100 text-slate-500 font-bold rounded-2xl btn-modern">처음으로</button>
+                            <button onClick={() => handleDownload('grid')} className="px-8 py-4 bg-slate-900 text-white font-bold rounded-2xl btn-modern flex items-center gap-2">
+                              <Download className="w-5 h-5" /> 바둑판 저장
+                            </button>
+                            <button onClick={() => handleDownload('vertical')} className="px-8 py-4 bg-slate-900 text-white font-bold rounded-2xl btn-modern flex items-center gap-2">
+                              <Download className="w-5 h-5" /> 세로형 저장
+                            </button>
+                            <button onClick={handleReset} className="px-8 py-4 bg-slate-100 text-slate-500 font-bold rounded-2xl btn-modern flex items-center gap-2">
+                              <RotateCcw className="w-5 h-5" /> 처음으로
+                            </button>
                         </div>
                     </div>
                 )}
@@ -682,8 +703,20 @@ const App: React.FC = () => {
         <p className="text-[11px] text-slate-300 font-bold uppercase tracking-[0.3em]">© 2025 Zoops AI Comic Labs. All Rights Reserved.</p>
       </footer>
       {showApiKeyModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-6">
-          <div className="max-w-md w-full bg-white rounded-[2.5rem] shadow-2xl p-10 border border-slate-100 animate-in zoom-in duration-300">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[9999] flex items-center justify-center p-6" onClick={() => setShowApiKeyModal(false)}>
+          <div 
+            className="max-w-md w-full bg-white rounded-[2.5rem] shadow-2xl p-10 border border-slate-100 animate-in zoom-in duration-300 relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button 
+              onClick={() => setShowApiKeyModal(false)}
+              className="absolute right-6 top-6 p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-all"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Key className="w-8 h-8 text-indigo-600" />
+            </div>
             <h2 className="text-2xl font-title text-indigo-900 mb-6 text-center">API 키 설정</h2>
             <div className="space-y-6">
               <div>
@@ -712,9 +745,9 @@ const App: React.FC = () => {
               </div>
               <button 
                 onClick={handleClearApiKey}
-                className="w-full py-2 text-rose-500 text-xs font-bold hover:underline"
+                className="w-full py-2 text-rose-500 text-xs font-bold hover:underline flex items-center justify-center gap-1"
               >
-                API 키 삭제 (로그아웃)
+                <RotateCcw className="w-3 h-3" /> API 키 삭제 (로그아웃)
               </button>
             </div>
           </div>
