@@ -13,9 +13,14 @@
     "@google/genai": "^1.21.0",
     "@tailwindcss/vite": "^4.2.2",
     "lucide-react": "^0.577.0",
+    "postcss": "^8.4.0",
+    "autoprefixer": "^10.4.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "tailwindcss": "^4.2.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
