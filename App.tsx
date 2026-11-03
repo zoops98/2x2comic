@@ -1,11 +1,27 @@
 
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Settings, RefreshCw, Upload, Sparkles, Download, RotateCcw, ChevronRight, Key, X, ExternalLink } from 'lucide-react';
-import { generateScript, generateImage, generateCharacterSheet, generateIdeas, generateInstagramPost, generateContinuationScript, setDynamicApiKey } from './services/geminiService';
+import { generateScript, generateImage, generateCharacterSheet, generateIdeas, generateInstagramPost, generateContinuationScript, imageErrorMessage, setDynamicApiKey } from './services/geminiService';
 import type { FullScript, Character, Step, StoryFormat, ContinuationType, TailDirection } from './types';
 import ComicPanel from './components/ComicPanel';
 import Spinner from './components/Spinner';
 import { InteractiveComicPanel, type BubbleConfig, drawTextOnImage, getDefaultBubbleConfig } from './components/InteractiveComicPanel';
+import type { PanelScript } from './types';
+
+function createBubbleConfig(imageData: string, panel: PanelScript): Promise<BubbleConfig> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => {
+      const context = document.createElement('canvas').getContext('2d');
+      if (!context) { reject(new Error('이미지 설정을 준비하지 못했습니다.')); return; }
+      const config = getDefaultBubbleConfig(context, image.width, image.height, panel);
+      if (panel.character === '생각') config.style = 'thought';
+      resolve(config);
+    };
+    image.onerror = () => reject(new Error('생성된 이미지를 읽지 못했습니다.'));
+    image.src = `data:image/png;base64,${imageData}`;
+  });
+}
 
 // Added readonly modifier to fix "identical modifiers" error if it exists globally
 declare global {
@@ -256,7 +272,7 @@ const App: React.FC = () => {
       if (err instanceof Error && err.message.includes("Requested entity was not found")) {
         setHasApiKey(false);
       }
-      setError('캐릭터 생성에 실패했습니다.');
+      setError(imageErrorMessage(err, '캐릭터 생성'));
     } finally {
         setIsGeneratingSheets(false);
     }
@@ -264,6 +280,7 @@ const App: React.FC = () => {
   
   const handleRegenerateCharacterSheet = useCallback(async (characterIndex: number) => {
     if (!script) return;
+    setError(null);
     setRegeneratingSheetIndex(characterIndex);
     try {
         const charToRegenerate = script.characters[characterIndex];
@@ -276,7 +293,7 @@ const App: React.FC = () => {
             return { ...prevScript, characters: updatedCharacters };
         });
     } catch (err) {
-        setError('이미지 재생성 실패');
+        setError(imageErrorMessage(err, '캐릭터 이미지 재생성'));
     } finally {
         setRegeneratingSheetIndex(null);
     }
@@ -284,32 +301,24 @@ const App: React.FC = () => {
 
   const handleGenerateImage = useCallback(async (panelIndex: number) => {
     if (!script) return;
+    setError(null);
     setGeneratingImageIndex(panelIndex);
     try {
       const panel = script.panels[panelIndex];
-      const rawImageBytes = await generateImage(panel.description, script.characters, artStyle);
+      const rawImageBytes = await generateImage(panel.description, script.characters, artStyle, topic, panel.dialogue);
 
       if (textFrameStyle === 'speech-bubble') {
+        const defaultConfig = await createBubbleConfig(rawImageBytes, panel);
+        setBubbleConfigs(prev => {
+          const newConfigs = [...prev];
+          newConfigs[panelIndex] = defaultConfig;
+          return newConfigs;
+        });
         setRawImages(prev => {
           const newImages = [...prev];
           newImages[panelIndex] = rawImageBytes;
           return newImages;
         });
-        const tempImg = new Image();
-        tempImg.src = `data:image/png;base64,${rawImageBytes}`;
-        tempImg.onload = () => {
-          const tempCanvas = document.createElement('canvas');
-          const tempCtx = tempCanvas.getContext('2d');
-          if (tempCtx) {
-            const defaultConfig = getDefaultBubbleConfig(tempCtx, tempImg.width, tempImg.height, panel);
-            if (panel.character === '생각') defaultConfig.style = 'thought';
-            setBubbleConfigs(prev => {
-                const newConfigs = [...prev];
-                newConfigs[panelIndex] = defaultConfig;
-                return newConfigs;
-            });
-          }
-        };
       } else {
         const imageWithText = await drawTextOnImage(rawImageBytes, panel, textFrameStyle);
         setFinalImages(prev => {
@@ -319,11 +328,11 @@ const App: React.FC = () => {
         });
       }
     } catch (err) {
-      setError('이미지 생성 실패');
+      setError(imageErrorMessage(err, '만화 이미지 생성'));
     } finally {
       setGeneratingImageIndex(null);
     }
-  }, [script, artStyle, textFrameStyle]);
+  }, [script, artStyle, textFrameStyle, topic]);
 
   const handleGenerateAllImages = useCallback(async () => {
     if (!script) return;
@@ -331,26 +340,14 @@ const App: React.FC = () => {
     setError(null);
     try {
       const imageGenerationPromises = script.panels.map(panel => 
-        generateImage(panel.description, script.characters, artStyle)
+        generateImage(panel.description, script.characters, artStyle, topic, panel.dialogue)
       );
       const generatedRawImages = await Promise.all(imageGenerationPromises);
 
       if (textFrameStyle === 'speech-bubble') {
+        const newConfigs = await Promise.all(generatedRawImages.map((image, index) => createBubbleConfig(image, script.panels[index])));
+        setBubbleConfigs(newConfigs);
         setRawImages(generatedRawImages);
-        const tempImg = new Image();
-        tempImg.src = `data:image/png;base64,${generatedRawImages[0]}`;
-        tempImg.onload = () => {
-            const tempCanvas = document.createElement('canvas');
-            const tempCtx = tempCanvas.getContext('2d');
-            if (tempCtx) {
-                const newConfigs = script.panels.map(panel => {
-                    const defaultConfig = getDefaultBubbleConfig(tempCtx, tempImg.width, tempImg.height, panel);
-                    if (panel.character === '생각') defaultConfig.style = 'thought';
-                    return defaultConfig;
-                });
-                setBubbleConfigs(newConfigs);
-            }
-        };
       } else {
         const processedImages = await Promise.all(
           generatedRawImages.map((rawImg, index) => 
@@ -360,11 +357,11 @@ const App: React.FC = () => {
         setFinalImages(processedImages);
       }
     } catch (err) {
-        setError('전체 생성 실패');
+        setError(imageErrorMessage(err, '전체 만화 이미지 생성'));
     } finally {
         setIsGeneratingAllImages(false);
     }
-  }, [script, artStyle, textFrameStyle]);
+  }, [script, artStyle, textFrameStyle, topic]);
 
   const getFinalImagesForDownload = useCallback(async (): Promise<(string | null)[]> => {
     if (textFrameStyle === 'speech-bubble') {
@@ -387,18 +384,25 @@ const App: React.FC = () => {
         const img = new Image(); img.src = `data:image/png;base64,${imgData}`; img.onload = () => res(img);
       });
     }));
-    const pw = imageElements[0].width; const ph = imageElements[0].height; const gap = 20;
+    // Each downloaded panel occupies the same square, even if a returned image differs in size.
+    const pw = Math.max(imageElements[0].width, imageElements[0].height); const ph = pw; const gap = 20;
+    const drawPanel = (img: HTMLImageElement, x: number, y: number) => {
+      const scale = Math.min(pw / img.width, ph / img.height);
+      const width = img.width * scale;
+      const height = img.height * scale;
+      ctx.drawImage(img, x + (pw - width) / 2, y + (ph - height) / 2, width, height);
+    };
     if (layout === 'grid') { canvas.width = pw * 2 + gap; canvas.height = ph * 2 + gap; }
     else if (layout === 'horizontal') { canvas.width = pw * 4 + gap * 3; canvas.height = ph; }
     else { canvas.width = pw; canvas.height = ph * 4 + gap * 3; }
     ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, canvas.width, canvas.height);
     if (layout === 'grid') {
-      ctx.drawImage(imageElements[0], 0, 0); ctx.drawImage(imageElements[1], pw + gap, 0);
-      ctx.drawImage(imageElements[2], 0, ph + gap); ctx.drawImage(imageElements[3], pw + gap, ph + gap);
+      drawPanel(imageElements[0], 0, 0); drawPanel(imageElements[1], pw + gap, 0);
+      drawPanel(imageElements[2], 0, ph + gap); drawPanel(imageElements[3], pw + gap, ph + gap);
     } else if (layout === 'horizontal') {
-      imageElements.forEach((img, i) => ctx.drawImage(img, i * (pw + gap), 0));
+      imageElements.forEach((img, i) => drawPanel(img, i * (pw + gap), 0));
     } else {
-      imageElements.forEach((img, i) => ctx.drawImage(img, 0, i * (ph + gap)));
+      imageElements.forEach((img, i) => drawPanel(img, 0, i * (ph + gap)));
     }
     const link = document.createElement('a'); link.download = `comic-${layout}.png`; link.href = canvas.toDataURL('image/png'); link.click();
   }, [getFinalImagesForDownload]);
